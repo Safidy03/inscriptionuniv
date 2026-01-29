@@ -14,23 +14,34 @@ import {
   View
 } from 'react-native';
 
+// IMPORTATION DU STORE DYNAMIQUE
+import { users } from '../../store';
+
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState(''); // Changé email en username
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    // Simulation de données statiques professionnelles
-    if (email === 'admin@eni.mg' && password === 'admin123') {
-      router.replace('/(tabs)/dashadmin');
-    } 
-    else if (email === 'student@eni.mg' && password === '123') {
-      router.replace('/(tabs)/dashetudiant');
-    } 
-    else {
+    // RECHERCHE DYNAMIQUE DANS LE STORE
+    const foundUser = users.find(
+      (u) => u.username === username && u.password === password
+    );
+
+    if (foundUser) {
+      if (foundUser.role === 'admin') {
+        router.replace('/(tabs)/dashadmin');
+      } else {
+        // On envoie le nom de l'utilisateur au dashboard pour l'afficher
+        router.replace({ 
+          pathname: '/(tabs)/dashetudiant', 
+          params: { user: foundUser.username } 
+        });
+      }
+    } else {
       Alert.alert(
-        "Accès Interdit", 
-        "Veuillez vérifier vos identifiants de simulation (admin@eni.mg ou student@eni.mg).",
+        "Erreur d'authentification", 
+        "Identifiant ou mot de passe incorrect.",
         [{ text: "Réessayer" }]
       );
     }
@@ -43,7 +54,6 @@ export default function LoginScreen() {
         style={styles.container}
       >
         <View style={styles.inner}>
-          {/* Logo Section */}
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
               <Ionicons name="school" size={50} color="#fff" />
@@ -52,17 +62,15 @@ export default function LoginScreen() {
             <Text style={styles.tagline}>Gestion des Concours</Text>
           </View>
 
-          {/* Form Section */}
           <View style={styles.formCard}>
             <View style={styles.inputGroup}>
-              <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput 
                 style={styles.input} 
-                placeholder="Identifiant" 
-                value={email}
-                onChangeText={setEmail}
+                placeholder="Identifiant (ex: admin)" 
+                value={username}
+                onChangeText={setUsername}
                 autoCapitalize="none"
-                keyboardType="email-address"
               />
             </View>
 
@@ -80,9 +88,19 @@ export default function LoginScreen() {
             <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
               <Text style={styles.loginButtonText}>SE CONNECTER</Text>
             </TouchableOpacity>
+
+            {/* NOUVEAU BOUTON : CRÉER UN COMPTE */}
+            <TouchableOpacity 
+              style={styles.registerLink} 
+              onPress={() => router.push('/register')}
+            >
+              <Text style={styles.registerText}>
+                Nouveau ? <Text style={{fontWeight: 'bold', color: '#003366'}}>Créer un compte</Text>
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          <Text style={styles.footerText}>Version Démo 1.0 - École Nationale d'Informatique</Text>
+          <Text style={styles.footerText}>Version 1.1 - École Nationale d'Informatique</Text>
         </View>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
@@ -102,5 +120,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, paddingVertical: 15, fontSize: 16, color: '#333' },
   loginButton: { backgroundColor: '#003366', borderRadius: 12, paddingVertical: 18, alignItems: 'center', marginTop: 10 },
   loginButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
+  registerLink: { marginTop: 20, alignItems: 'center' },
+  registerText: { color: '#666', fontSize: 14 },
   footerText: { textAlign: 'center', color: '#999', fontSize: 12, marginTop: 40 }
 });

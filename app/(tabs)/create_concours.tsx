@@ -1,109 +1,77 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ajouterConcours, listeConcours, supprimerConcours } from '../../store';
 
 export default function CreateConcours() {
+  const [titre, setTitre] = useState('');
+  const [description, setDescription] = useState('');
+  const [date, setDate] = useState('');
+  const [, setUpdate] = useState(0); // Pour forcer le rafraîchissement
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
 
-  const handleCreate = () => {
-    setLoading(true);
-    // Simulation d'enregistrement dans la base de données
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert(
-        "Succès", 
-        "Le nouveau concours a été publié avec succès.",
-        [{ text: "OK", onPress: () => router.back() }]
-      );
-    }, 1200);
+  const handleCreer = () => {
+    if (!titre || !description || !date) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs");
+      return;
+    }
+    ajouterConcours({ titre, description, dateLimite: date });
+    setTitre(''); setDescription(''); setDate('');
+    setUpdate(prev => prev + 1);
+    Alert.alert("Succès", "Concours ajouté !");
+  };
+
+  const handleSupprimer = (id: number) => {
+    Alert.alert("Suppression", "Voulez-vous supprimer ce concours ?", [
+      { text: "Annuler", style: "cancel" },
+      { text: "Supprimer", style: "destructive", onPress: () => {
+          supprimerConcours(id);
+          setUpdate(prev => prev + 1);
+      }}
+    ]);
   };
 
   return (
-    <View style={styles.container}>
-      {/* Top Bar Professionnelle */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#003366" />
-          <Text style={styles.backText}>Retour</Text>
+    <ScrollView style={styles.container}>
+      <Text style={styles.mainTitle}>Gestion des Concours</Text>
+      
+      {/* Formulaire */}
+      <View style={styles.formCard}>
+        <TextInput style={styles.input} value={titre} onChangeText={setTitre} placeholder="Nom du concours" />
+        <TextInput style={[styles.input, {height: 80}]} value={description} onChangeText={setDescription} placeholder="Description" multiline />
+        <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="Date limite (JJ/MM/AAAA)" />
+        <TouchableOpacity style={styles.btn} onPress={handleCreer}>
+          <Text style={styles.btnText}>Ajouter le concours</Text>
         </TouchableOpacity>
-        <Text style={styles.pageTitle}>Nouveau Concours</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionLabel}>Informations Générales</Text>
-        
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Titre du concours</Text>
-          <TextInput style={styles.input} placeholder="Ex: Concours d'entrée L1 2024" placeholderTextColor="#bdc3c7" />
-        </View>
-
-        <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-            <Text style={styles.label}>Date de l'examen</Text>
-            <TextInput style={styles.input} placeholder="JJ/MM/AAAA" placeholderTextColor="#bdc3c7" />
+      <Text style={styles.sectionTitle}>Concours publiés</Text>
+      
+      {/* Liste de suppression */}
+      {listeConcours.map((c) => (
+        <View key={c.id} style={styles.concoursItem}>
+          <View style={{flex: 1}}>
+            <Text style={styles.concoursTitre}>{c.titre}</Text>
+            <Text style={{fontSize: 12, color: '#666'}}>{c.dateLimite}</Text>
           </View>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>Frais (Ar)</Text>
-            <TextInput style={styles.input} placeholder="50 000" keyboardType="numeric" placeholderTextColor="#bdc3c7" />
-          </View>
+          <TouchableOpacity onPress={() => handleSupprimer(c.id)}>
+            <Ionicons name="trash-outline" size={24} color="#e74c3c" />
+          </TouchableOpacity>
         </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Centres d'examen</Text>
-          <TextInput style={styles.input} placeholder="Ex: Fianarantsoa, Tana, Mahajanga" placeholderTextColor="#bdc3c7" />
-        </View>
-
-        <Text style={[styles.sectionLabel, {marginTop: 20}]}>Composants & Modules (UML)</Text>
-        <View style={styles.componentBox}>
-          <Text style={styles.componentText}>• Mathématiques (Coeff: 3)</Text>
-          <Text style={styles.componentText}>• Algorithmique (Coeff: 5)</Text>
-          <Text style={styles.componentText}>• Anglais (Coeff: 2)</Text>
-        </View>
-
-        <TouchableOpacity 
-          style={styles.submitBtn} 
-          onPress={handleCreate}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="cloud-upload-outline" size={20} color="#fff" style={{marginRight: 10}} />
-              <Text style={styles.submitBtnText}>PUBLIER LE CONCOURS</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  topBar: { paddingTop: 50, paddingBottom: 15, paddingHorizontal: 20, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', elevation: 2 },
-  backBtn: { flexDirection: 'row', alignItems: 'center' },
-  backText: { marginLeft: 5, color: '#003366', fontWeight: 'bold' },
-  pageTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 'bold', color: '#003366', marginRight: 40 },
-  formContainer: { padding: 25 },
-  sectionLabel: { fontSize: 14, fontWeight: 'bold', color: '#7f8c8d', textTransform: 'uppercase', marginBottom: 15, letterSpacing: 1 },
-  inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, color: '#34495e', marginBottom: 8, fontWeight: '600' },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e1e4e8', borderRadius: 12, padding: 15, fontSize: 16, color: '#2c3e50' },
-  row: { flexDirection: 'row' },
-  componentBox: { backgroundColor: '#e1f5fe', padding: 15, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#003366', marginBottom: 30 },
-  componentText: { color: '#003366', fontSize: 14, marginBottom: 5, fontWeight: '500' },
-  submitBtn: { backgroundColor: '#003366', padding: 20, borderRadius: 15, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', elevation: 4 },
-  submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16, letterSpacing: 1 }
+  container: { flex: 1, padding: 20, backgroundColor: '#f4f7f6' },
+  mainTitle: { fontSize: 24, fontWeight: 'bold', color: '#003366', marginBottom: 20 },
+  formCard: { backgroundColor: '#fff', padding: 20, borderRadius: 15, elevation: 3, marginBottom: 30 },
+  input: { backgroundColor: '#f9f9f9', padding: 12, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: '#eee' },
+  btn: { backgroundColor: '#003366', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  btnText: { color: '#fff', fontWeight: 'bold' },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
+  concoursItem: { backgroundColor: '#fff', padding: 15, borderRadius: 12, flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  concoursTitre: { fontWeight: 'bold', fontSize: 16 }
 });

@@ -41,7 +41,7 @@ export default function DashAdminScreen() {
             <Text style={styles.adminTitle}>Direction ENI</Text>
             <Text style={styles.adminSubtitle}>Session : Administrateur Central</Text>
           </View>
-          <TouchableOpacity onPress={() => router.replace('/(tabs)/')}>
+          <TouchableOpacity onPress={() => router.replace('/')}>
             <Ionicons name="power" size={26} color="#fff" />
           </TouchableOpacity>
         </View>
