@@ -14,25 +14,28 @@ import {
   View
 } from 'react-native';
 
-// IMPORTATION DU STORE DYNAMIQUE
+// CORRECTION DE L'IMPORT (Remonter de 2 niveaux pour trouver store.ts)
 import { users } from '../../store';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [username, setUsername] = useState(''); // Changé email en username
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    // RECHERCHE DYNAMIQUE DANS LE STORE
+    // Nettoyage des espaces pour éviter les erreurs de frappe
+    const cleanUser = username.trim();
+    const cleanPass = password.trim();
+
     const foundUser = users.find(
-      (u) => u.username === username && u.password === password
+      (u) => u.username.toLowerCase() === cleanUser.toLowerCase() && u.password === cleanPass
     );
 
     if (foundUser) {
       if (foundUser.role === 'admin') {
         router.replace('/(tabs)/dashadmin');
       } else {
-        // On envoie le nom de l'utilisateur au dashboard pour l'afficher
+        // Redirection vers le dashboard étudiant avec les paramètres nécessaires
         router.replace({ 
           pathname: '/(tabs)/dashetudiant', 
           params: { user: foundUser.username } 
@@ -40,8 +43,8 @@ export default function LoginScreen() {
       }
     } else {
       Alert.alert(
-        "Erreur d'authentification", 
-        "Identifiant ou mot de passe incorrect.",
+        "Accès Refusé", 
+        "Identifiant ou mot de passe incorrect. Assurez-vous d'avoir créé un compte bachelier valide.",
         [{ text: "Réessayer" }]
       );
     }
@@ -58,8 +61,8 @@ export default function LoginScreen() {
             <View style={styles.logoCircle}>
               <Ionicons name="school" size={50} color="#fff" />
             </View>
-            <Text style={styles.logoText}>U-F</Text>
-            <Text style={styles.tagline}>Gestion des Concours</Text>
+            <Text style={styles.logoText}>ENI-UF</Text>
+            <Text style={styles.tagline}>Concours d'Entrée Universitaire</Text>
           </View>
 
           <View style={styles.formCard}>
@@ -67,7 +70,7 @@ export default function LoginScreen() {
               <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput 
                 style={styles.input} 
-                placeholder="Identifiant (ex: admin)" 
+                placeholder="Nom d'utilisateur" 
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
@@ -89,18 +92,19 @@ export default function LoginScreen() {
               <Text style={styles.loginButtonText}>SE CONNECTER</Text>
             </TouchableOpacity>
 
-            {/* NOUVEAU BOUTON : CRÉER UN COMPTE */}
             <TouchableOpacity 
               style={styles.registerLink} 
               onPress={() => router.push('/register')}
             >
               <Text style={styles.registerText}>
-                Nouveau ? <Text style={{fontWeight: 'bold', color: '#003366'}}>Créer un compte</Text>
+                Nouveau bachelier ? <Text style={styles.linkBold}>Créer un compte</Text>
               </Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.footerText}>Version 1.1 - École Nationale d'Informatique</Text>
+          <Text style={styles.footerText}>
+            © 2026 ENI Fianarantsoa • Système de validation sécurisé
+          </Text>
         </View>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
@@ -111,16 +115,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f2f5' },
   inner: { flex: 1, justifyContent: 'center', padding: 25 },
   logoContainer: { alignItems: 'center', marginBottom: 40 },
-  logoCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#003366', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+  logoCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#003366', justifyContent: 'center', alignItems: 'center', marginBottom: 15, elevation: 5 },
   logoText: { fontSize: 32, fontWeight: 'bold', color: '#003366', letterSpacing: 2 },
-  tagline: { fontSize: 14, color: '#666', marginTop: 5 },
-  formCard: { backgroundColor: '#fff', borderRadius: 20, padding: 25, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
+  tagline: { fontSize: 14, color: '#666', marginTop: 5, fontWeight: '500' },
+  formCard: { backgroundColor: '#fff', borderRadius: 25, padding: 25, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 8 },
   inputGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f9fa', borderRadius: 12, marginBottom: 15, paddingHorizontal: 15, borderWidth: 1, borderColor: '#e1e4e8' },
   inputIcon: { marginRight: 10 },
   input: { flex: 1, paddingVertical: 15, fontSize: 16, color: '#333' },
-  loginButton: { backgroundColor: '#003366', borderRadius: 12, paddingVertical: 18, alignItems: 'center', marginTop: 10 },
+  loginButton: { backgroundColor: '#003366', borderRadius: 12, paddingVertical: 18, alignItems: 'center', marginTop: 10, shadowColor: '#003366', shadowOpacity: 0.3, shadowRadius: 5, elevation: 3 },
   loginButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
   registerLink: { marginTop: 20, alignItems: 'center' },
   registerText: { color: '#666', fontSize: 14 },
+  linkBold: { fontWeight: 'bold', color: '#003366' },
   footerText: { textAlign: 'center', color: '#999', fontSize: 12, marginTop: 40 }
 });

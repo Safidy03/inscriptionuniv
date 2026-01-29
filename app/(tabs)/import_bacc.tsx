@@ -1,28 +1,58 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import XLSX from 'xlsx';
 
-export default function ImportBacc() {
+import { BachelierRef, importerBacheliers, listeBacheliersRef } from '../../store';
+
+export default function ImportBaccExcel() {
   const router = useRouter();
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-  const [progress, setProgress] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(''); // Pour la recherche
 
-  const startImport = () => {
-    setStatus('loading');
-    setProgress(0);
-    
-    // Simulation d'une barre de progression qui avance
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setStatus('success');
-          return 100;
-        }
-        return prev + 10;
+  // Fonction de filtrage
+  const bacheliersFiltrés = listeBacheliersRef.filter(b => 
+    b.nom.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    b.numBacc.includes(searchQuery)
+  );
+
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'],
       });
-    }, 300);
+
+      if (result.canceled) return;
+
+      setImporting(true);
+      const fileUri = result.assets[0].uri;
+
+      const fileBase64 = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: 'base64', // Correction appliquée ici aussi
+      });
+
+      const workbook = XLSX.read(fileBase64, { type: 'base64' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const data: any[] = XLSX.utils.sheet_to_json(worksheet);
+
+      const formattedData: BachelierRef[] = data.map(row => ({
+        numBacc: String(row.numBacc || row.Matricule),
+        nom: String(row.nom || row.Nom),
+        serie: String(row.serie || row.Serie),
+      }));
+
+      await importerBacheliers(formattedData);
+      setImporting(false);
+      Alert.alert("Succès", `${formattedData.length} bacheliers importés.`);
+
+    } catch (error) {
+      setImporting(false);
+      Alert.alert("Erreur", "Impossible de lire le fichier Excel.");
+    }
   };
 
   return (
@@ -30,48 +60,45 @@ export default function ImportBacc() {
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#003366" />
-          <Text style={styles.backText}>Retour</Text>
         </TouchableOpacity>
-        <Text style={styles.pageTitle}>Importation BACC</Text>
+        <Text style={styles.pageTitle}>Gestion des Bacheliers</Text>
       </View>
 
       <View style={styles.content}>
-        {status === 'idle' && (
-          <View style={styles.card}>
-            <Ionicons name="cloud-download-outline" size={80} color="#003366" />
-            <Text style={styles.cardTitle}>Synchronisation Ministérielle</Text>
-            <Text style={styles.cardDesc}>
-              Importer la base de données officielle des bacheliers 2024 pour la vérification automatique des dossiers.
-            </Text>
-            <TouchableOpacity style={styles.importBtn} onPress={startImport}>
-              <Text style={styles.importBtnText}>LANCER L'IMPORTATION</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* BOUTON IMPORT */}
+        <TouchableOpacity style={styles.importBtn} onPress={handlePickDocument} disabled={importing}>
+          <Ionicons name="cloud-upload-outline" size={24} color="#fff" />
+          <Text style={styles.importBtnText}> {importing ? "IMPORTATION..." : "IMPORTER EXCEL"} </Text>
+        </TouchableOpacity>
 
-        {status === 'loading' && (
-          <View style={styles.card}>
-            <ActivityIndicator size="large" color="#003366" />
-            <Text style={styles.loadingText}>Importation en cours : {progress}%</Text>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+        {/* BARRE DE RECHERCHE */}
+        <View style={styles.searchSection}>
+          <Ionicons name="search" size={20} color="#7f8c8d" style={styles.searchIcon} />
+          <TextInput 
+            style={styles.input}
+            placeholder="Rechercher par nom ou numéro..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        <Text style={styles.listHeader}>Liste des bacheliers officiels ({bacheliersFiltrés.length})</Text>
+        
+        <FlatList
+          data={bacheliersFiltrés} // Utilisation de la liste filtrée
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.listItem}>
+              <View>
+                <Text style={styles.itemName}>{item.nom}</Text>
+                <Text style={styles.itemBacc}>N° {item.numBacc}</Text>
+              </View>
+              <View style={styles.serieBadge}>
+                <Text style={styles.serieText}>{item.serie}</Text>
+              </View>
             </View>
-            <Text style={styles.subLoading}>Vérification des signatures numériques...</Text>
-          </View>
-        )}
-
-        {status === 'success' && (
-          <View style={styles.card}>
-            <Ionicons name="checkmark-done-circle" size={80} color="#27ae60" />
-            <Text style={[styles.cardTitle, {color: '#27ae60'}]}>Importation Terminée</Text>
-            <Text style={styles.cardDesc}>
-              12 450 nouveaux bacheliers ont été ajoutés à la base de contrôle locale.
-            </Text>
-            <TouchableOpacity style={styles.backDashBtn} onPress={() => router.back()}>
-              <Text style={styles.backDashText}>RETOURNER AU DASHBOARD</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          )}
+        />
       </View>
     </View>
   );
@@ -79,20 +106,19 @@ export default function ImportBacc() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
-  topBar: { paddingTop: 50, paddingBottom: 15, paddingHorizontal: 20, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  backBtn: { flexDirection: 'row', alignItems: 'center' },
-  backText: { marginLeft: 5, color: '#003366', fontWeight: 'bold' },
-  pageTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 'bold', color: '#003366', marginRight: 40 },
-  content: { flex: 1, justifyContent: 'center', padding: 25 },
-  card: { backgroundColor: '#fff', padding: 40, borderRadius: 30, alignItems: 'center', elevation: 5 },
-  cardTitle: { fontSize: 20, fontWeight: 'bold', color: '#2c3e50', marginTop: 20, textAlign: 'center' },
-  cardDesc: { color: '#7f8c8d', textAlign: 'center', marginTop: 10, lineHeight: 20 },
-  importBtn: { backgroundColor: '#003366', padding: 20, borderRadius: 15, marginTop: 30, width: '100%', alignItems: 'center' },
-  importBtnText: { color: '#fff', fontWeight: 'bold' },
-  loadingText: { marginTop: 20, fontWeight: 'bold', color: '#003366' },
-  progressBarBg: { height: 8, width: '100%', backgroundColor: '#eee', borderRadius: 4, marginTop: 15, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#003366' },
-  subLoading: { fontSize: 11, color: '#bdc3c7', marginTop: 10 },
-  backDashBtn: { backgroundColor: '#f0f4f8', padding: 15, borderRadius: 12, marginTop: 25 },
-  backDashText: { color: '#003366', fontWeight: 'bold' }
+  topBar: { paddingTop: 50, paddingBottom: 15, paddingHorizontal: 20, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', elevation: 2 },
+  backBtn: { padding: 5 },
+  pageTitle: { fontSize: 18, fontWeight: 'bold', color: '#003366', marginLeft: 15 },
+  content: { flex: 1, padding: 20 },
+  importBtn: { backgroundColor: '#27ae60', padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  importBtnText: { color: '#fff', fontWeight: 'bold', marginLeft: 10 },
+  searchSection: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 10, marginBottom: 20, borderWidth: 1, borderColor: '#ddd' },
+  searchIcon: { marginRight: 10 },
+  input: { flex: 1, height: 45 },
+  listHeader: { fontWeight: 'bold', marginBottom: 10, color: '#34495e' },
+  listItem: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 1 },
+  itemName: { fontSize: 15, fontWeight: 'bold', color: '#2c3e50' },
+  itemBacc: { fontSize: 12, color: '#7f8c8d' },
+  serieBadge: { backgroundColor: '#003366', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  serieText: { color: '#fff', fontWeight: 'bold', fontSize: 12 }
 });
