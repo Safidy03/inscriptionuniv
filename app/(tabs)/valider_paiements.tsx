@@ -4,41 +4,39 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // IMPORTATION DU STORE
-import { chargerTout, listeCandidats, mettreAJourStatut } from '../../store';
+import { chargerTout, confirmerPaiementFinal, listeCandidats } from '../../store';
 
-export default function ValiderDossiers() {
+export default function ValiderPaiements() {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [candidats, setCandidats] = useState<any[]>([]);
 
-  // CHARGEMENT : On synchronise avec le store
+  // CHARGEMENT : On filtre sur ceux qui ont payé mais ne sont pas encore définitifs
   const rafraichirListe = async () => {
     await chargerTout();
-    const dossiersAValider = listeCandidats.filter(
-      (c) => c.statut === "En attente" || c.statut === "A vérifier"
+    const dossiersAPayer = listeCandidats.filter(
+      (c) => c.statut === "Paiement à vérifier"
     );
-    setCandidats(dossiersAValider);
+    setCandidats(dossiersAPayer);
   };
 
   useEffect(() => {
     rafraichirListe();
   }, []);
 
-  const handleAction = (id: number, nom: string, action: string) => {
+  const handleAction = (id: number, nom: string) => {
     setLoadingId(id);
 
-    // Simulation du temps de traitement admin
+    // Simulation du temps de vérification bancaire
     setTimeout(async () => {
-      const nouveauStatut = action === "APPROUVÉ" ? "Validé" : "Refusé";
-      
-      // Mise à jour dans le store (AsyncStorage)
-      await mettreAJourStatut(id, nouveauStatut);
+      // APPEL À LA FONCTION DU STORE QUI GÉNÈRE LA CONVOCATION
+      await confirmerPaiementFinal(id);
       
       // Mise à jour de l'affichage local
       setCandidats(prev => prev.filter(c => c.id !== id));
       setLoadingId(null);
       
-      Alert.alert("Action effectuée", `Le dossier de ${nom} est désormais : ${nouveauStatut}`);
+      Alert.alert("Paiement Confirmé", `La convocation de ${nom} a été générée avec succès.`);
     }, 800);
   };
 
@@ -49,26 +47,23 @@ export default function ValiderDossiers() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#003366" />
         </TouchableOpacity>
-        <Text style={styles.pageTitle}>Validation Admin</Text>
+        <Text style={styles.pageTitle}>Validation Paiements</Text>
         <TouchableOpacity onPress={rafraichirListe}>
           <Ionicons name="refresh" size={20} color="#003366" />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionHint}>Dossiers en attente de vérification :</Text>
+        <Text style={styles.sectionHint}>Reçus Mobile Money à vérifier :</Text>
         
         {candidats.map((c) => (
           <View key={c.id} style={styles.candidatCard}>
             <View style={styles.infoBox}>
               <Text style={styles.candName}>{c.nom}</Text>
-              <Text style={styles.candDetails}>
-                Bacc: {c.numBacc} • Série {c.serie}
-              </Text>
+              <Text style={styles.refText}>Réf: {c.referencePaiement}</Text>
               
-              {/* CORRECTION : Utilisation de c.filiere au lieu de concoursChoisi */}
               <View style={styles.filiereBadge}>
-                <Ionicons name="school" size={14} color="#2980b9" />
+                <Ionicons name="cash" size={14} color="#27ae60" />
                 <Text style={styles.filiereText}>{c.filiere}</Text>
               </View>
             </View>
@@ -77,21 +72,12 @@ export default function ValiderDossiers() {
               {loadingId === c.id ? (
                 <ActivityIndicator color="#003366" />
               ) : (
-                <>
-                  <TouchableOpacity 
-                    onPress={() => handleAction(c.id, c.nom, "APPROUVÉ")} 
-                    style={[styles.miniBtn, {backgroundColor: '#2ecc71'}]}
-                  >
-                    <Ionicons name="checkmark" size={22} color="#fff" />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    onPress={() => handleAction(c.id, c.nom, "REJETÉ")} 
-                    style={[styles.miniBtn, {backgroundColor: '#e74c3c'}]}
-                  >
-                    <Ionicons name="close" size={22} color="#fff" />
-                  </TouchableOpacity>
-                </>
+                <TouchableOpacity 
+                  onPress={() => handleAction(c.id, c.nom)} 
+                  style={[styles.miniBtn, {backgroundColor: '#27ae60'}]}
+                >
+                  <Ionicons name="checkmark-done" size={24} color="#fff" />
+                </TouchableOpacity>
               )}
             </View>
           </View>
@@ -99,9 +85,9 @@ export default function ValiderDossiers() {
 
         {candidats.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="cloud-done-outline" size={70} color="#dcdde1" />
-            <Text style={styles.emptyTitle}>Tout est à jour !</Text>
-            <Text style={styles.emptySub}>Aucun nouveau dossier à vérifier.</Text>
+            <Ionicons name="wallet-outline" size={70} color="#dcdde1" />
+            <Text style={styles.emptyTitle}>Aucun paiement</Text>
+            <Text style={styles.emptySub}>Tous les reçus ont été traités.</Text>
           </View>
         )}
       </ScrollView>
@@ -116,14 +102,14 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: 18, fontWeight: 'bold', color: '#2c3e50' },
   scrollContent: { padding: 20 },
   sectionHint: { fontSize: 13, color: '#95a5a6', marginBottom: 15, textTransform: 'uppercase', letterSpacing: 1 },
-  candidatCard: { backgroundColor: '#fff', borderRadius: 12, padding: 15, marginBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
+  candidatCard: { backgroundColor: '#fff', borderRadius: 12, padding: 15, marginBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 2 },
   infoBox: { flex: 1 },
   candName: { fontSize: 16, fontWeight: 'bold', color: '#2c3e50' },
-  candDetails: { fontSize: 12, color: '#7f8c8d', marginTop: 3 },
-  filiereBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3498db15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, alignSelf: 'flex-start', marginTop: 8 },
-  filiereText: { fontSize: 11, color: '#2980b9', fontWeight: 'bold', marginLeft: 5 },
+  refText: { fontSize: 14, color: '#27ae60', fontWeight: 'bold', marginTop: 3 },
+  filiereBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#27ae6015', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, alignSelf: 'flex-start', marginTop: 8 },
+  filiereText: { fontSize: 11, color: '#27ae60', fontWeight: 'bold', marginLeft: 5 },
   actionGroup: { flexDirection: 'row' },
-  miniBtn: { width: 45, height: 45, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
+  miniBtn: { width: 55, height: 45, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
   emptyState: { alignItems: 'center', marginTop: 100 },
   emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#bdc3c7', marginTop: 15 },
   emptySub: { fontSize: 14, color: '#bdc3c7', marginTop: 5 }

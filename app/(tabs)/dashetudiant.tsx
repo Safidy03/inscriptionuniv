@@ -4,59 +4,48 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // LIAISON AVEC LE STORE
-import { listeBacheliersRef, listeCandidats, users } from '../../store';
-
-interface Candidat {
-  id: number;
-  nom: string;
-  serie: string;
-  numBacc: string;
-  statut: string;
-}
+import { Candidat, chargerTout, listeBacheliersRef, listeCandidats, users } from '../../store';
 
 export default function DashboardEtudiant() {
   const router = useRouter();
-  const { user } = useLocalSearchParams(); // On récupère le pseudo passé au login
+  const { user } = useLocalSearchParams(); 
   
-  const [monDossier, setMonDossier] = useState<Candidat | null>(null);
+  const [mesInscriptions, setMesInscriptions] = useState<Candidat[]>([]);
+  const [infoBaccBase, setInfoBaccBase] = useState<{numBacc: string, serie: string, nom: string} | null>(null);
 
   useEffect(() => {
-    // 1. Trouver l'utilisateur connecté dans le store
-    const currentUser = users.find(u => u.username === user);
-    
-    if (currentUser) {
-      // 2. Chercher ses infos bachelier (importées via Excel)
-      const baccInfo = listeBacheliersRef.find(b => b.numBacc === currentUser.numBacc);
-      
-      // 3. Chercher s'il a déjà un dossier de candidature
-      const dossierExistant = (listeCandidats as Candidat[]).find(c => c.numBacc === currentUser.numBacc);
-
-      if (dossierExistant) {
-        setMonDossier(dossierExistant);
-      } else if (baccInfo) {
-        // Si pas encore de dossier, on affiche les infos de base du BACC
-        setMonDossier({
-          id: 0,
-          nom: baccInfo.nom,
-          serie: baccInfo.serie,
-          numBacc: baccInfo.numBacc,
-          statut: "Non Inscrit"
-        });
+    const initDashboard = async () => {
+      await chargerTout();
+      const currentUser = users.find(u => u.username === user);
+      if (currentUser) {
+        const bacc = listeBacheliersRef.find(b => b.numBacc === currentUser.numBacc);
+        if (bacc) setInfoBaccBase(bacc);
+        const sesInscriptions = listeCandidats.filter(c => c.numBacc === currentUser.numBacc);
+        setMesInscriptions(sesInscriptions);
       }
-    }
+    };
+    initDashboard();
   }, [user]);
 
-  const statut = monDossier ? monDossier.statut : "AUCUNE INSCRIPTION";
-  const estValide = statut === "Validé";
+  // CORRECTION : Cette fonction doit être à l'intérieur du composant ou définie avant le return
+  const getStatusStyle = (statut: string) => {
+    switch (statut) {
+      case "Inscrit Définitif": return { bg: '#27ae60', icon: 'checkmark-circle' };
+      case "Validé": return { bg: '#2980b9', icon: 'time' };
+      case "Refusé": return { bg: '#e74c3c', icon: 'close-circle' };
+      default: return { bg: '#f39c12', icon: 'hourglass' };
+    }
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.welcomeText}>Bonjour, {monDossier?.nom || user}</Text>
+            <Text style={styles.welcomeText}>Bonjour, {infoBaccBase?.nom || user}</Text>
             <Text style={styles.idText}>
-              BACC: {monDossier?.numBacc} • Série {monDossier?.serie}
+              BACC: {infoBaccBase?.numBacc || "N/A"} • Série {infoBaccBase?.serie || "N/A"}
             </Text>
           </View>
           <TouchableOpacity onPress={() => router.replace('/')} style={styles.logoutBtn}>
@@ -65,62 +54,74 @@ export default function DashboardEtudiant() {
         </View>
       </View>
 
+      {/* SECTION CANDIDATURES */}
       <View style={styles.statusSection}>
-        <Text style={styles.sectionTitle}>Ma Candidature au Concours</Text>
-        <View style={[styles.statusCard, estValide && styles.cardValid]}>
-          <View style={styles.statusHeader}>
-            <Text style={styles.statusLabel}>Statut du dossier</Text>
-            <View style={[styles.badge, { 
-                backgroundColor: statut === "Validé" ? '#27ae60' : (statut === "Refusé" ? '#e74c3c' : '#f39c12') 
-            }]}>
-              <Text style={styles.badgeText}>{statut.toUpperCase()}</Text>
-            </View>
+        <Text style={styles.sectionTitle}>Mes Candidatures ({mesInscriptions.length})</Text>
+        
+        {mesInscriptions.length === 0 ? (
+          <View style={styles.statusCard}>
+            <Text style={styles.statusUpdate}>👉 Aucune inscription en cours.</Text>
           </View>
-          
-          <Text style={styles.statusUpdate}>
-            {statut === "Validé" 
-              ? "✅ Dossier conforme. Vous pouvez payer les frais." 
-              : (statut === "Non Inscrit" ? "👉 Cliquez sur 'S'inscrire' pour commencer." : "⏳ Vérification administrative en cours...")}
-          </Text>
-        </View>
+        ) : (
+          mesInscriptions.map((doc) => {
+            const config = getStatusStyle(doc.statut);
+            return (
+              <View key={doc.id} style={[styles.statusCard, { borderLeftColor: config.bg, borderLeftWidth: 5, marginBottom: 12 }]}>
+                <View style={styles.statusHeader}>
+                  <View>
+                    <Text style={styles.filiereTitle}>{doc.filiere}</Text>
+                    <Text style={styles.statusLabel}>ID: {doc.id.toString().slice(-6)}</Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: config.bg }]}>
+                    <Text style={styles.badgeText}>{doc.statut.toUpperCase()}</Text>
+                  </View>
+                </View>
+                <View style={styles.cardFooter}>
+                  <Ionicons name={config.icon as any} size={16} color={config.bg} />
+                  <Text style={[styles.statusUpdate, { marginTop: 0, marginLeft: 5 }]}>
+                    {doc.paye ? "Paiement validé ✅" : "Paiement en attente ⏳"}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        )}
       </View>
 
+      {/* MENU */}
       <View style={styles.gridContainer}>
         <View style={styles.row}>
-          <TouchableOpacity 
-            style={styles.menuItem} 
-            onPress={() => router.push({ pathname: '/concours', params: { user } })}
-          >
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push({ pathname: '/concours', params: { user } })}>
             <View style={[styles.iconCircle, { backgroundColor: '#3498db20' }]}>
               <Ionicons name="school-outline" size={28} color="#3498db" />
             </View>
-            <Text style={styles.menuLabel}>S'inscrire au Concours</Text>
+            <Text style={styles.menuLabel}>S'inscrire</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.menuItem, !estValide && {opacity: 0.5}]} 
-            onPress={() => estValide ? router.push('/paiement') : null}
+            style={[styles.menuItem, mesInscriptions.length === 0 && { opacity: 0.5 }]} 
+            onPress={() => mesInscriptions.length > 0 && router.push({ pathname: '/paiement', params: { user } })}
           >
-            <View style={[styles.iconCircle, { backgroundColor: estValide ? '#27ae6020' : '#eee' }]}>
-              <Ionicons name="card-outline" size={28} color={estValide ? '#27ae60' : "#95a5a6"} />
+            <View style={[styles.iconCircle, { backgroundColor: '#27ae6020' }]}>
+              <Ionicons name="card-outline" size={28} color="#27ae60" />
             </View>
-            <Text style={styles.menuLabel}>Droit d'examen</Text>
+            <Text style={styles.menuLabel}>Paiement</Text>
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.row}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/resultats')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push({ pathname: '/notifications', params: { user } })}>
             <View style={[styles.iconCircle, { backgroundColor: '#9b59b620' }]}>
-              <Ionicons name="ribbon-outline" size={28} color="#9b59b6" />
+              <Ionicons name="notifications-outline" size={28} color="#9b59b6" />
             </View>
-            <Text style={styles.menuLabel}>Résultats</Text>
+            <Text style={styles.menuLabel}>Notifications</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profil')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push({ pathname: '/profil', params: { user } })}>
             <View style={[styles.iconCircle, { backgroundColor: '#f1c40f20' }]}>
               <Ionicons name="person-outline" size={28} color="#f1c40f" />
             </View>
-            <Text style={styles.menuLabel}>Mon Profil</Text>
+            <Text style={styles.menuLabel}>Profil</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -132,21 +133,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f4f7f9' },
   header: { backgroundColor: '#003366', paddingTop: 60, paddingBottom: 30, paddingHorizontal: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  welcomeText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  idText: { color: '#aab7b8', fontSize: 13, marginTop: 4 },
+  welcomeText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  idText: { color: '#aab7b8', fontSize: 12, marginTop: 4 },
   logoutBtn: { backgroundColor: '#fff', padding: 8, borderRadius: 10 },
-  statusSection: { padding: 25 },
+  statusSection: { padding: 20 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#2c3e50', marginBottom: 15 },
-  statusCard: { backgroundColor: '#fff', padding: 20, borderRadius: 20, elevation: 3 },
-  cardValid: { borderLeftWidth: 5, borderLeftColor: '#27ae60' },
-  statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statusLabel: { fontSize: 14, color: '#7f8c8d' },
-  badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
+  statusCard: { backgroundColor: '#fff', padding: 15, borderRadius: 12, elevation: 2 },
+  statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  filiereTitle: { fontSize: 15, fontWeight: 'bold', color: '#003366' },
+  statusLabel: { fontSize: 10, color: '#95a5a6' },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5 },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
-  statusUpdate: { fontSize: 13, color: '#34495e', marginTop: 12, fontWeight: '500' },
-  gridContainer: { paddingHorizontal: 20 },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 10, borderTopWidth: 1, borderTopColor: '#f1f1f1', paddingTop: 8 },
+  statusUpdate: { fontSize: 12, color: '#34495e' },
+  gridContainer: { paddingHorizontal: 20, paddingBottom: 20 },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-  menuItem: { backgroundColor: '#fff', width: '47%', padding: 20, borderRadius: 20, alignItems: 'center', elevation: 2 },
-  iconCircle: { width: 55, height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  menuLabel: { fontSize: 12, fontWeight: 'bold', color: '#34495e', textAlign: 'center' }
+  menuItem: { backgroundColor: '#fff', width: '47%', padding: 15, borderRadius: 15, alignItems: 'center', elevation: 2 },
+  iconCircle: { width: 50, height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  menuLabel: { fontSize: 12, fontWeight: 'bold', color: '#34495e' }
 });

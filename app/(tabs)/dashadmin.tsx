@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -9,25 +9,47 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { chargerTout, listeCandidats } from '../../store';
 
 export default function DashAdminScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  
+  // État pour les statistiques en temps réel
+  const [stats, setStats] = useState({ 
+    aValider: 0, 
+    aPayer: 0, 
+    total: 0 
+  });
 
-  // Simulation de chargement pour le réalisme technique
+  // Mise à jour automatique des stats quand on arrive sur l'écran
+  useFocusEffect(
+    useCallback(() => {
+      const updateDashboard = async () => {
+        await chargerTout();
+        setStats({
+          aValider: listeCandidats.filter(c => c.statut === "En attente").length,
+          aPayer: listeCandidats.filter(c => c.statut === "Paiement à vérifier").length,
+          total: listeCandidats.length
+        });
+      };
+      updateDashboard();
+    }, [])
+  );
+
   const navigateTo = (path: string) => {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
       router.push(path as any);
-    }, 900);
+    }, 600);
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#003366" />
-        <Text style={styles.loadingText}>Synchronisation avec le serveur...</Text>
+        <Text style={styles.loadingText}>Accès au terminal sécurisé...</Text>
       </View>
     );
   }
@@ -39,7 +61,7 @@ export default function DashAdminScreen() {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.adminTitle}>Direction ENI</Text>
-            <Text style={styles.adminSubtitle}>Session : Administrateur Central</Text>
+            <Text style={styles.adminSubtitle}>Session : Scolarité & Finances</Text>
           </View>
           <TouchableOpacity onPress={() => router.replace('/')}>
             <Ionicons name="power" size={26} color="#fff" />
@@ -47,50 +69,51 @@ export default function DashAdminScreen() {
         </View>
       </View>
 
-      {/* Statistiques Rapides pour la crédibilité */}
+      {/* Statistiques Dynamiques */}
       <View style={styles.statsSection}>
         <View style={styles.statBox}>
-          <Text style={styles.statNumber}>148</Text>
-          <Text style={styles.statLabel}>Inscrits</Text>
+          <Text style={[styles.statNumber, { color: '#f39c12' }]}>{stats.aValider}</Text>
+          <Text style={styles.statLabel}>Dossiers</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={[styles.statNumber, { color: '#f39c12' }]}>12</Text>
-          <Text style={styles.statLabel}>À Valider</Text>
+          <Text style={[styles.statNumber, { color: '#e74c3c' }]}>{stats.aPayer}</Text>
+          <Text style={styles.statLabel}>Paiements</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={[styles.statNumber, { color: '#27ae60' }]}>03</Text>
-          <Text style={styles.statLabel}>Concours</Text>
+          <Text style={[styles.statNumber, { color: '#27ae60' }]}>{stats.total}</Text>
+          <Text style={styles.statLabel}>Total Candidats</Text>
         </View>
       </View>
 
-      {/* Menu de Gestion (UML) */}
+      {/* Menu de Gestion */}
       <View style={styles.menuSection}>
         <Text style={styles.sectionTitle}>Gestion des Opérations</Text>
         
         <AdminMenuButton 
+          title="Valider les Candidatures" 
+          desc="Vérification des dossiers et pièces"
+          icon="checkmark-done-circle-outline" 
+          onPress={() => navigateTo('/(tabs)/valider_dossiers')} 
+        />
+        
+        {/* NOUVEAU : Validation Financière */}
+        <AdminMenuButton 
+          title="Valider les Paiements" 
+          desc="Vérification des reçus (Mvola/Orange)"
+          icon="cash-outline" 
+          onPress={() => navigateTo('/(tabs)/valider_paiements')} 
+        />
+        
+        <AdminMenuButton 
           title="Créer un Nouveau Concours" 
-          desc="Définir les dates et centres d'examen"
+          desc="Définir les dates et centres"
           icon="add-circle-outline" 
           onPress={() => navigateTo('/(tabs)/create_concours')} 
         />
         
         <AdminMenuButton 
-          title="Valider les Candidatures" 
-          desc="Vérification des dossiers et pièces jointes"
-          icon="checkmark-done-circle-outline" 
-          onPress={() => navigateTo('/(tabs)/valider_dossiers')} 
-        />
-        
-        <AdminMenuButton 
-          title="Gérer les Composants" 
-          desc="Configuration des modules de l'examen"
-          icon="settings-outline" 
-          onPress={() => navigateTo('/(tabs)/gestion_composants')} 
-        />
-        
-        <AdminMenuButton 
           title="Importer Liste Admis BACC" 
-          desc="Mise à jour de la base de données ministérielle"
+          desc="Mise à jour base de données"
           icon="cloud-upload-outline" 
           onPress={() => navigateTo('/(tabs)/import_bacc')} 
         />
@@ -158,9 +181,7 @@ const styles = StyleSheet.create({
     padding: 18, 
     borderRadius: 20, 
     marginBottom: 15,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05
+    elevation: 2
   },
   cardIconBox: { width: 50, height: 50, borderRadius: 15, backgroundColor: '#f0f4f8', justifyContent: 'center', alignItems: 'center' },
   cardTextBox: { flex: 1, marginLeft: 15 },

@@ -7,10 +7,12 @@ export interface Candidat {
   serie: string;
   numBacc: string;
   statut: string;
-  filiere?: string;
-  concoursChoisi?: string;
-  paye: boolean;             // Obligatoire
-  referencePaiement?: string; 
+  filiere: string;
+  paye: boolean;
+  referencePaiement?: string;
+  numInscription?: string;
+  salle?: string;
+  place?: number;
 }
 
 export interface Concours {
@@ -64,12 +66,7 @@ export let listeCandidats: Candidat[] = [];
 // --- LOGIQUE DE PERSISTANCE ---
 export const sauvegarderTout = async () => {
   try {
-    const data = {
-      c: listeCandidats,
-      con: listeConcours,
-      u: users,
-      ref: listeBacheliersRef
-    };
+    const data = { c: listeCandidats, con: listeConcours, u: users, ref: listeBacheliersRef };
     await AsyncStorage.setItem('@storage_Key', JSON.stringify(data));
   } catch (e) { console.log("Erreur sauvegarde local"); }
 };
@@ -89,48 +86,88 @@ export const chargerTout = async () => {
 
 // --- FONCTIONS ACTIONS ---
 
-export const importerBacheliers = async (nouveaux: BachelierRef[]) => {
-  listeBacheliersRef = [...listeBacheliersRef, ...nouveaux];
-  await sauvegarderTout();
-};
-
 export const registerUser = async (username: string, password: string, numBacc: string, telephone: string, adresse: string) => {
   const exists = users.find(u => u.username === username);
-  if (exists) return { success: false, msg: "Ce nom d'utilisateur est déjà utilisé." };
-
-  const bachelierValide = listeBacheliersRef.find(b => b.numBacc === numBacc);
-  if (!bachelierValide) return { success: false, msg: "Numéro de Bacc non reconnu." };
-
-  const baccDejaUtilise = users.find(u => u.numBacc === numBacc);
-  if (baccDejaUtilise) return { success: false, msg: "Un compte existe déjà pour ce Bacc." };
-
+  if (exists) return { success: false, msg: "Pseudo déjà utilisé." };
   users.push({ username, password, role: 'student', numBacc, telephone, adresse });
   await sauvegarderTout();
   return { success: true, msg: "Compte créé !" };
 };
 
 export const inscrireAuConcours = async (numBacc: string, nom: string, serie: string, filiere: string) => {
+  const indexExistant = listeCandidats.findIndex(
+    c => c.numBacc === numBacc && c.filiere === filiere
+  );
+
+  if (indexExistant !== -1) {
+    const dossier = listeCandidats[indexExistant];
+    if (["Validé", "Inscrit Définitif", "En attente", "Paiement à vérifier"].includes(dossier.statut)) {
+      return { success: false, msg: "Une inscription est déjà en cours ou validée." };
+    }
+
+    if (dossier.statut === "Refusé") {
+      listeCandidats[indexExistant] = {
+        ...dossier,
+        statut: "En attente",
+        paye: false,
+        id: Date.now() 
+      };
+      await sauvegarderTout();
+      return { success: true, msg: "Dossier renvoyé !" };
+    }
+  }
+
   const nouveauCandidat: Candidat = {
     id: Date.now(),
-    nom: nom,
-    serie: serie,
-    numBacc: numBacc,
-    filiere: filiere,
+    nom,
+    serie,
+    numBacc,
+    filiere,
     statut: "En attente",
-    paye: false // Ajouté pour corriger l'erreur de l'interface
+    paye: false
   };
   
   listeCandidats.push(nouveauCandidat);
   await sauvegarderTout();
-  return { success: true, msg: "Inscription réussie !" };
+  return { success: true, msg: `Inscription en ${filiere} réussie !` };
 };
 
-export const validerPaiementStore = async (numBacc: string, reference: string) => {
-  const index = listeCandidats.findIndex(c => c.numBacc === numBacc);
+// ÉTAPE 1 : L'étudiant soumet son paiement
+export const validerPaiementStore = async (idDossier: number, reference: string) => {
+  const index = listeCandidats.findIndex(c => c.id === idDossier);
   if (index !== -1) {
-    listeCandidats[index].paye = true;
     listeCandidats[index].referencePaiement = reference;
+    listeCandidats[index].statut = "Paiement à vérifier"; // L'étudiant attend l'admin
+    await sauvegarderTout();
+    return true;
+  }
+  return false;
+};
+
+// ÉTAPE 2 : L'admin confirme le paiement et génère la convocation
+export const confirmerPaiementFinal = async (idDossier: number) => {
+  const index = listeCandidats.findIndex(c => c.id === idDossier);
+  if (index !== -1) {
+    const randomSalle = Math.floor(Math.random() * 15) + 1; 
+    const randomPlace = Math.floor(Math.random() * 50) + 1;
+
+    listeCandidats[index].paye = true;
     listeCandidats[index].statut = "Inscrit Définitif";
+    listeCandidats[index].numInscription = `ENI-2026-${idDossier.toString().slice(-4)}`;
+    listeCandidats[index].salle = `Bâtiment C - Salle ${randomSalle}`;
+    listeCandidats[index].place = randomPlace;
+
+    await sauvegarderTout();
+    return true;
+  }
+  return false;
+};
+
+export const modifierProfilUser = async (username: string, telephone: string, adresse: string) => {
+  const index = users.findIndex(u => u.username === username);
+  if (index !== -1) {
+    users[index].telephone = telephone;
+    users[index].adresse = adresse;
     await sauvegarderTout();
     return true;
   }
@@ -142,31 +179,47 @@ export const mettreAJourStatut = async (id: number, nouveauStatut: string) => {
   await sauvegarderTout();
 };
 
-export const ajouterConcours = async (nouveau: Omit<Concours, 'id'>) => {
-  const concoursComplet: Concours = { ...nouveau, id: Date.now() };
-  listeConcours.push(concoursComplet);
-  await sauvegarderTout();
-};
-
-export const supprimerConcours = async (id: number) => {
-  listeConcours = listeConcours.filter(c => c.id !== id);
-  await sauvegarderTout();
-};
-
-export const getNotifications = (statut: string): Notification[] => {
-  const notes: Notification[] = [
-    { id: 1, titre: "Bienvenue", message: "Merci d'avoir créé votre compte sur InscriptionUniv.", date: "Il y a 2h", type: 'info' }
+// --- SYSTÈME DE NOTIFICATIONS ---
+export const getNotifications = (mesInscriptions: Candidat[]): Notification[] => {
+  let notes: Notification[] = [
+    { id: 1, titre: "Bienvenue", message: "Compte créé avec succès.", date: "Système", type: 'info' }
   ];
 
-  if (statut === "En attente") {
-    notes.push({ id: 2, titre: "Dossier reçu", message: "Votre inscription au concours est en cours de traitement.", date: "Il y a 1h", type: 'info' });
-  } else if (statut === "Validé") {
-    notes.push({ id: 3, titre: "Félicitations !", message: "Votre dossier a été validé. Vous pouvez payer les frais.", date: "À l'instant", type: 'success' });
-  } else if (statut === "Refusé") {
-    notes.push({ id: 4, titre: "Dossier Incomplet", message: "Votre dossier a été rejeté. Veuillez vérifier vos pièces.", date: "À l'instant", type: 'error' });
-  } else if (statut === "Inscrit Définitif") {
-    notes.push({ id: 5, titre: "Paiement Validé", message: "Vous êtes officiellement inscrit au concours.", date: "À l'instant", type: 'success' });
-  }
+  mesInscriptions.forEach((doc) => {
+    if (doc.statut === "Validé") {
+      notes.push({
+        id: doc.id + 100,
+        titre: `Dossier Validé : ${doc.filiere}`,
+        message: `Dossier conforme. Vous pouvez maintenant payer les frais.`,
+        date: "Admin",
+        type: 'success'
+      });
+    } else if (doc.statut === "Paiement à vérifier") {
+      notes.push({
+        id: doc.id + 150,
+        titre: `Paiement en cours : ${doc.filiere}`,
+        message: `Votre référence ${doc.referencePaiement} est en cours de vérification.`,
+        date: "Attente",
+        type: 'info'
+      });
+    } else if (doc.statut === "Inscrit Définitif") {
+      notes.push({
+        id: doc.id + 200,
+        titre: `Convocation disponible : ${doc.filiere}`,
+        message: `Paiement validé ! Téléchargez votre convocation (N° ${doc.numInscription}).`,
+        date: "Terminé",
+        type: 'success'
+      });
+    } else if (doc.statut === "Refusé") {
+      notes.push({
+        id: doc.id + 300,
+        titre: `Dossier Refusé : ${doc.filiere}`,
+        message: `Dossier rejeté. Veuillez contacter l'établissement.`,
+        date: "Admin",
+        type: 'error'
+      });
+    }
+  });
 
   return notes.reverse();
 };
