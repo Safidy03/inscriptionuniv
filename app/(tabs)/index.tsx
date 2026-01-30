@@ -36,7 +36,11 @@ export default function LoginScreen() {
 
     if (foundUser) {
       if (foundUser.role === "admin") {
-        router.replace("/(tabs)/dashadmin");
+        // Passer le username aussi au dashboard admin pour afficher le profil
+        router.replace({
+          pathname: "/(tabs)/dashadmin",
+          params: { user: foundUser.username },
+        });
       } else {
         // Redirection vers le dashboard étudiant avec les paramètres nécessaires
         router.replace({
