@@ -112,9 +112,6 @@ export default function ProfilEtudiant() {
               </View>
             </View>
           </View>
-          {/* <View style={styles.statusBadge}>
-            <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
-          </View> */}
         </View>
         <Text style={styles.userName}>{infosBacc?.nom || user}</Text>
         <Text style={styles.userEmail}>{userData?.email || user}</Text>
