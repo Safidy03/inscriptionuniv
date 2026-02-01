@@ -17,6 +17,7 @@ export default function RegisterScreen() {
   const [form, setForm] = useState({
     username: "",
     password: "",
+    email: "",
     numBacc: "",
     telephone: "",
     adresse: "",
@@ -26,7 +27,7 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleRegister = async () => {
-    if (!form.username || !form.password || !form.numBacc) {
+    if (!form.username || !form.password || !form.numBacc || !form.email) {
       Alert.alert("Erreur", "Veuillez remplir les champs obligatoires (*)");
       return;
     }
@@ -53,6 +54,7 @@ export default function RegisterScreen() {
       form.numBacc,
       form.telephone,
       form.adresse,
+      form.email,
     );
 
     if (res.success) {
@@ -89,6 +91,16 @@ export default function RegisterScreen() {
             placeholder="Numéro de BACC *"
             keyboardType="numeric"
             onChangeText={(t) => setForm({ ...form, numBacc: t })}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Ionicons name="mail-outline" size={20} color="#003366" />
+          <TextInput
+            style={styles.input}
+            placeholder="Adresse e-mail"
+            keyboardType="email-address"
+            onChangeText={(t) => setForm({ ...form, email: t })}
           />
         </View>
 

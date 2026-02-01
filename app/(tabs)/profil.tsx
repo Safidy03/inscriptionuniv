@@ -97,15 +97,27 @@ export default function ProfilEtudiant() {
       {/* Card Profil Principal */}
       <View style={styles.profileCard}>
         <View style={styles.avatarContainer}>
-          <View style={styles.avatarCircle}>
-            <Ionicons name="person" size={50} color="#fff" />
+          <View style={styles.avatarSection}>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatarCircle}>
+                {/* <Ionicons name="person" size={50} color="#fff" /> */}
+                <View style={styles.avatarInitial}>
+                  <Text style={styles.avatarInitialText}>
+                    {user ? String(user).charAt(0).toUpperCase() : "D"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.statusBadge}>
+                <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
+              </View>
+            </View>
           </View>
-          <View style={styles.statusBadge}>
+          {/* <View style={styles.statusBadge}>
             <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
-          </View>
+          </View> */}
         </View>
         <Text style={styles.userName}>{infosBacc?.nom || user}</Text>
-        <Text style={styles.userEmail}>{user}@eni.mg</Text>
+        <Text style={styles.userEmail}>{userData?.email || user}</Text>
         <View style={styles.userBadge}>
           <Ionicons
             name={
@@ -137,10 +149,10 @@ export default function ProfilEtudiant() {
             title="Informations personnelles"
             subtitle={`Pseudo, ${infosBacc?.nom || "Adresse"}`}
             onPress={() =>
-              Alert.alert(
-                "Info",
-                "Navigation vers les informations personnelles",
-              )
+              router.push({
+                pathname: "/(tabs)/profil/info",
+                params: { user },
+              })
             }
           />
           <MenuItem
@@ -148,10 +160,10 @@ export default function ProfilEtudiant() {
             title="Mot de passe"
             subtitle="Modifier votre mot de passe"
             onPress={() =>
-              Alert.alert(
-                "Sécurité",
-                "Navigation vers changement de mot de passe",
-              )
+              router.push({
+                pathname: "/(tabs)/profil/editPwd",
+                params: { user },
+              })
             }
           />
         </View>
@@ -165,20 +177,33 @@ export default function ProfilEtudiant() {
             icon="help-circle-outline"
             title="Centre d'aide"
             subtitle="FAQ et assistance"
-            onPress={() => Alert.alert("Aide", "Navigation vers centre d'aide")}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/profil/help",
+                params: { user },
+              })
+            }
           />
           <MenuItem
             icon="chatbubble-ellipses-outline"
             title="Contactez-nous"
             subtitle="Envoyez-nous un message"
-            onPress={() => Alert.alert("Contact", "Navigation vers contact")}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/profil/contact",
+                params: { user },
+              })
+            }
           />
           <MenuItem
             icon="star-outline"
             title="Évaluer l'application"
             subtitle="Partagez votre expérience"
             onPress={() =>
-              Alert.alert("Évaluation", "Merci pour votre feedback!")
+              router.push({
+                pathname: "/(tabs)/profil/rate",
+                params: { user },
+              })
             }
           />
         </View>
@@ -191,19 +216,32 @@ export default function ProfilEtudiant() {
           <MenuItem
             icon="document-text-outline"
             title="Conditions d'utilisation"
-            onPress={() => Alert.alert("Légal", "Navigation vers CGU")}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/profil/termofuse",
+                params: { user },
+              })
+            }
           />
           <MenuItem
             icon="shield-outline"
             title="Politique de confidentialité"
-            onPress={() => Alert.alert("Légal", "Navigation vers politique")}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/profil/privacypolicy",
+                params: { user },
+              })
+            }
           />
           <MenuItem
             icon="information-circle-outline"
             title="À propos de l'application"
             subtitle="Version 1.0.0"
             onPress={() =>
-              Alert.alert("À propos", "ENI-UF © 2026\nVersion 1.0.0")
+              router.push({
+                pathname: "/(tabs)/profil/about",
+                params: { user },
+              })
             }
           />
         </View>
@@ -319,7 +357,15 @@ const styles = StyleSheet.create({
     color: "#003366",
     fontWeight: "600",
   },
-
+  avatarInitial: {
+    width: 65,
+    height: 65,
+    borderRadius: 36,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarInitialText: { color: "#003366", fontSize: 40, fontWeight: "bold" },
   // Sections
   section: {
     marginTop: 25,

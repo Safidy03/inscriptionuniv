@@ -114,6 +114,9 @@ export default function LoginScreen() {
                 />
               </TouchableOpacity>
             </View>
+            <TouchableOpacity onPress={() => router.push("/(tabs)/forgotPwd")}>
+              <Text style={styles.forgotPwdText}>Mot de passe oublié ?</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
               <Text style={styles.loginButtonText}>SE CONNECTER</Text>
@@ -209,5 +212,9 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 5,
+  },
+  forgotPwdText: {
+    marginLeft: 180,
+    color: "#000000ff",
   },
 });
