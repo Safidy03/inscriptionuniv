@@ -97,7 +97,7 @@ export default function ProfilEtudiant() {
       {/* Card Profil Principal */}
       <View style={styles.profileCard}>
         <View style={styles.avatarContainer}>
-          <View style={styles.avatarSection}>
+          <View>
             <View style={styles.avatarContainer}>
               <View style={styles.avatarCircle}>
                 {/* <Ionicons name="person" size={50} color="#fff" /> */}
@@ -201,7 +201,7 @@ export default function ProfilEtudiant() {
             subtitle="Partagez votre expérience"
             onPress={() =>
               router.push({
-                pathname: "/(tabs)/profil/rate",
+                pathname: "/(tabs)/profil/rateApp",
                 params: { user },
               })
             }
@@ -218,7 +218,7 @@ export default function ProfilEtudiant() {
             title="Conditions d'utilisation"
             onPress={() =>
               router.push({
-                pathname: "/(tabs)/profil/termofuse",
+                pathname: "/(tabs)/profil/termofUse",
                 params: { user },
               })
             }
@@ -228,7 +228,7 @@ export default function ProfilEtudiant() {
             title="Politique de confidentialité"
             onPress={() =>
               router.push({
-                pathname: "/(tabs)/profil/privacypolicy",
+                pathname: "/(tabs)/profil/privacyPolicy",
                 params: { user },
               })
             }

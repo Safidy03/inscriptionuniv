@@ -96,21 +96,6 @@ export const sauvegarderTout = async () => {
   }
 };
 
-// export const chargerTout = async () => {
-//   try {
-//     const jsonValue = await AsyncStorage.getItem("@storage_Key");
-//     if (jsonValue != null) {
-//       const data = JSON.parse(jsonValue);
-//       listeCandidats = data.c || [];
-//       listeConcours = data.con || [];
-//       users = data.u || users;
-//       listeBacheliersRef = data.ref || listeBacheliersRef;
-//     }
-//   } catch (e) {
-//     console.log("Erreur chargement local");
-//   }
-// };
-
 export const chargerTout = async () => {
   try {
     const jsonValue = await AsyncStorage.getItem("@storage_Key");
@@ -379,15 +364,87 @@ export const getNotifications = (
   return notes.reverse();
 };
 // Générer un code de réinitialisation aléatoire
-export const genererCodeReset = (): string => {
-  return Math.floor(100000 + Math.random() * 900000).toString(); // Code à 6 chiffres
-};
+// export const genererCodeReset = (): string => {
+//   return Math.floor(100000 + Math.random() * 900000).toString(); // Code à 6 chiffres
+// };
 
-// Stocker temporairement les codes de réinitialisation
-let codesReset: { [username: string]: { code: string; expiration: number } } =
-  {};
+// // Stocker temporairement les codes de réinitialisation
+// let codesReset: { [username: string]: { code: string; expiration: number } } =
+//   {};
 
-// Demander un code de réinitialisation par EMAIL
+// // Demander un code de réinitialisation par EMAIL
+// export const demanderResetPasswordParEmail = async (
+//   email: string,
+// ): Promise<{
+//   success: boolean;
+//   msg: string;
+//   username?: string;
+//   code?: string;
+// }> => {
+//   await chargerTout();
+
+//   const user = users.find((u) => u.email === email);
+
+//   if (!user) {
+//     return { success: false, msg: "Aucun compte associé à cet email." };
+//   }
+
+//   // Générer un code qui expire dans 15 minutes
+//   const code = genererCodeReset();
+//   const expiration = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+//   codesReset[user.username] = { code, expiration };
+
+//   return {
+//     success: true,
+//     msg: "Code de réinitialisation généré.",
+//     username: user.username, // Retourne le username pour les étapes suivantes
+//     code,
+//   };
+// };
+// // Vérifier le code et réinitialiser le mot de passe
+// export const resetPasswordAvecCode = async (
+//   username: string,
+//   code: string,
+//   nouveauPassword: string,
+// ): Promise<{ success: boolean; msg: string }> => {
+//   await chargerTout();
+
+//   const resetData = codesReset[username];
+
+//   if (!resetData) {
+//     return {
+//       success: false,
+//       msg: "Aucune demande de réinitialisation trouvée.",
+//     };
+//   }
+
+//   if (Date.now() > resetData.expiration) {
+//     delete codesReset[username];
+//     return {
+//       success: false,
+//       msg: "Le code a expiré. Veuillez en demander un nouveau.",
+//     };
+//   }
+
+//   if (resetData.code !== code) {
+//     return { success: false, msg: "Code incorrect." };
+//   }
+
+//   // Réinitialiser le mot de passe
+//   const index = users.findIndex((u) => u.username === username);
+//   if (index !== -1) {
+//     users[index].password = nouveauPassword;
+//     await sauvegarderTout();
+
+//     // Supprimer le code utilisé
+//     delete codesReset[username];
+
+//     return { success: true, msg: "Mot de passe réinitialisé avec succès !" };
+//   }
+
+//   return { success: false, msg: "Erreur lors de la réinitialisation." };
+// };
 export const demanderResetPasswordParEmail = async (
   email: string,
 ): Promise<{
@@ -395,29 +452,35 @@ export const demanderResetPasswordParEmail = async (
   msg: string;
   username?: string;
   code?: string;
+  // on garde le code dans la réponse (pour l'afficher à l'utilisateur)
 }> => {
   await chargerTout();
-
   const user = users.find((u) => u.email === email);
 
   if (!user) {
     return { success: false, msg: "Aucun compte associé à cet email." };
   }
 
-  // Générer un code qui expire dans 15 minutes
   const code = genererCodeReset();
-  const expiration = Date.now() + 15 * 60 * 1000; // 15 minutes
+  const expiration = Date.now() + 15 * 60 * 1000;
 
   codesReset[user.username] = { code, expiration };
 
   return {
     success: true,
-    msg: "Code de réinitialisation généré.",
-    username: user.username, // Retourne le username pour les étapes suivantes
-    code,
+    msg: "Code généré avec succès",
+    username: user.username,
+    code, // ← on retourne toujours le code
   };
 };
-// Vérifier le code et réinitialiser le mot de passe
+
+export const genererCodeReset = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+let codesReset: { [username: string]: { code: string; expiration: number } } =
+  {};
+
 export const resetPasswordAvecCode = async (
   username: string,
   code: string,
@@ -446,15 +509,11 @@ export const resetPasswordAvecCode = async (
     return { success: false, msg: "Code incorrect." };
   }
 
-  // Réinitialiser le mot de passe
   const index = users.findIndex((u) => u.username === username);
   if (index !== -1) {
     users[index].password = nouveauPassword;
     await sauvegarderTout();
-
-    // Supprimer le code utilisé
     delete codesReset[username];
-
     return { success: true, msg: "Mot de passe réinitialisé avec succès !" };
   }
 
